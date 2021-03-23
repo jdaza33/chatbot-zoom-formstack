@@ -180,21 +180,22 @@ const saveTokenApp = (token, refreshToken, expireAt) => {
 const getAllUsers = (code = null) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let tokenapp = await getTokenApp()
+      let tokenapp = null
       let tokenRefresh = null
 
-      // if (!code) tokenapp = await getTokenApp()
-      // else {
-      //   let { data: dataTokenUser } = await axios.post(
-      //     `${process.env.url_api_zoom}/oauth/token?grant_type=authorization_code&code=${code}&redirect_uri=${process.env.url_auth_api}`,
-      //     {},
-      //     {
-      //       headers: __headers__basic,
-      //     }
-      //   )
-      //   tokenapp = dataTokenUser.access_token
-      //   tokenRefresh = dataTokenUser.refresh_token
-      // }
+      if (!code) tokenapp = await getTokenApp()
+      else {
+        let { data: dataTokenUser } = await axios.post(
+          `${process.env.url_api_zoom}/oauth/token?grant_type=authorization_code&code=${code}&redirect_uri=${process.env.url_auth_api}`,
+          {},
+          {
+            headers: __headers__basic,
+          }
+        )
+        console.log('dataTokenUser', dataTokenUser)
+        tokenapp = dataTokenUser.access_token
+        tokenRefresh = dataTokenUser.refresh_token
+      }
 
       console.log('tokenapp', tokenapp)
 

@@ -32,6 +32,7 @@ const authorize = async (req, res, next) => {
         await getTokenApp()
         await getAllUsers()
       } else {
+        console.log('paso por un usuario cualquiera')
         await getAllUsers(code)
       }
     }
