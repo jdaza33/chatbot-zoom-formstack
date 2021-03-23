@@ -28,9 +28,11 @@ const authorize = async (req, res, next) => {
     console.log('authorize', req.query)
     let { code } = req.query
     if (code) {
-      if (!(await saveCodeApp(code))) {
+      if (await saveCodeApp(code)) {
         await getTokenApp()
         await getAllUsers()
+      } else {
+        await getAllUsers(code)
       }
     }
 
