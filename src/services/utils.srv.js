@@ -7,6 +7,9 @@ require('dotenv').config()
 //Models
 const Util = require('../models/Util')
 
+//Services
+const { getTokenApp, getAllUsers } = require('./zoom.srv')
+
 const saveCodeApp = (code) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -15,14 +18,17 @@ const saveCodeApp = (code) => {
         field: process.env.name_code_app,
       }).lean()
 
-      if (codeapp)
-        await Util.findByIdAndUpdate(codeapp._id, { $set: { value: code } })
-      else
+      if (codeapp) await getAllUsers(code)
+      else {
         await Util.create({
           field: process.env.name_code_app,
           value: code,
           expire: false,
         })
+        await getTokenApp()
+        await getAllUsers()
+      }
+
       return resolve()
     } catch (error) {
       console.log(error)

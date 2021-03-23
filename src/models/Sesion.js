@@ -13,6 +13,8 @@ const UserSchema = new Schema({
 const SesionSchema = new Schema({
   formId: String,
   user: [UserSchema],
+  userIds: [String],
+  meetingId: String,
   formName: String,
   // idFieldEmail: String,
   fields: Array,

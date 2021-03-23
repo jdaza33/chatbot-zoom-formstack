@@ -9,6 +9,7 @@ const UtilSchema = new Schema({
   field: String,
   value: String,
   refreshToken: String,
+  userId: String,
   expire: Boolean,
   expireAtMs: Number,
 })

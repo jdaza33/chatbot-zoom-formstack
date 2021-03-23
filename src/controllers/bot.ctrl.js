@@ -16,6 +16,7 @@ const {
   startQuestion,
   selectedQuestion,
   endBot,
+  startMeeting,
 } = require('../services/zoom.srv')
 
 const main = (req, res, next) => {
@@ -26,11 +27,7 @@ const authorize = async (req, res, next) => {
   try {
     console.log('authorize', req.query)
     let { code } = req.query
-    if (code) {
-      await saveCodeApp(code)
-      await getTokenApp()
-      await getAllUsers()
-    }
+    if (code) await saveCodeApp(code)
 
     res.redirect(
       'https://zoom.us/launch/chat?jid=robot_' + process.env.zoom_bot_jid
@@ -133,11 +130,14 @@ const bot = async (req, res, next) => {
     let { userId, cmd } = payload
 
     if (event == process.env.event_bot_notification) {
-      if (cmd.trim() == '#iniciar') await startBot(userId)
+      let { email } = await getUser(userId)
+      if (email == process.env.email_admin) {
+        if (cmd.trim() == '#iniciar') await startBot(userId)
 
-      if (/#p/.test(cmd.trim())) await startQuestion(cmd, userId)
+        if (/#p/.test(cmd.trim())) await startQuestion(cmd, userId)
 
-      if (cmd.trim() == '#finalizar') await endBot(userId)
+        if (cmd.trim() == '#finalizar') await endBot(userId)
+      }
     }
 
     if (event == process.env.event_bot_message_select) {
@@ -147,6 +147,9 @@ const bot = async (req, res, next) => {
       //Verificamos la solicitud
       if (/select_form_sesion/.test(selectedItems[0].value))
         await startSesion(selectedItems[0].value, userId)
+
+      if (/select_form_meeting/.test(selectedItems[0].value))
+        await startMeeting(selectedItems[0].value, userId)
 
       if (/select_question/.test(selectedItems[0].value)) {
         await selectedQuestion(selectedItems[0].value, userId)

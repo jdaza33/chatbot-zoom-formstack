@@ -5,6 +5,7 @@
 //Modules
 require('dotenv').config()
 const axios = require('axios').default
+const moment = require('moment')
 
 //Models
 const Util = require('../models/Util')
@@ -14,7 +15,7 @@ const Sesion = require('../models/Sesion')
 //Services
 const { getCodeApp } = require('./utils.srv')
 const { getAllForms, getForm, submissionForm } = require('./formstack.srv')
-const { getAllJid } = require('./user.srv')
+const { getAllJid, getAllJidByEmail } = require('./user.srv')
 
 //Const
 __headers__basic = {
@@ -39,17 +40,27 @@ const getTokenChatBot = () => {
 
         console.log('tokenchatbot', data.access_token)
 
-        await Util.create({
-          field: process.env.name_toke_chatbot,
-          value: data.access_token,
-          expire: true,
-          expireAtMs: parseInt(data.expires_in) * 1000,
-        })
+        // await Util.create({
+        //   field: process.env.name_toke_chatbot,
+        //   value: data.access_token,
+        //   expire: true,
+        //   expireAtMs: moment().add(50, 'minutes').valueOf(),
+        // })
+
+        await Util.findOneAndUpdate(
+          { field: process.env.name_toke_chatbot },
+          {
+            value: data.access_token,
+            expire: true,
+            expireAtMs: moment().add(50, 'minutes').valueOf(),
+          },
+          { upsert: true }
+        )
 
         return data.access_token
       }
 
-      let date = Date.now()
+      let date = moment().valueOf()
       let tokenchatbot = await Util.findOne({
         field: process.env.name_toke_chatbot,
       }).lean()
@@ -59,8 +70,8 @@ const getTokenChatBot = () => {
        */
       if (tokenchatbot) {
         if (tokenchatbot.expire) {
-          //   if (date > parseInt(tokenchatbot.expireAtMs) - 6000)
-          if (false) return resolve(tokenchatbot.value)
+          if (date < parseInt(tokenchatbot.expireAtMs))
+            return resolve(tokenchatbot.value)
           else return resolve(await requestToken())
         } else return resolve(tokenchatbot.value)
       } else return resolve(await requestToken())
@@ -97,26 +108,31 @@ const getTokenApp = () => {
           }
         )
         console.log('refreshToken', data)
-        let { access_token, refresh_token, expires_in } = data
+        let { access_token, refresh_token } = data
         await Util.findByIdAndUpdate(id, {
           $set: {
             value: access_token,
             refreshToken: refresh_token,
-            expireAtMs: parseInt(expires_in) * 1000,
+            expireAtMs: moment().add(50, 'minutes').valueOf(),
           },
         })
 
         return data.access_token
       }
 
-      let date = Date.now()
+      let date = moment().valueOf()
       let tokenapp = await Util.findOne({
         field: process.env.name_toke_app,
       }).lean()
 
+      console.log(tokenapp)
+      console.log('date', date, 'expireAtMs', tokenapp.expireAtMs)
+
       if (tokenapp) {
-        if (tokenapp.expire) {
-          if (date > parseInt(tokenapp.expireAtMs) - 6000)
+        // if (tokenapp.expire) {
+        if (true) {
+          if (false)
+            // if (date > parseInt(tokenapp.expireAtMs))
             return resolve(tokenapp.value)
           else
             return resolve(
@@ -152,7 +168,7 @@ const saveTokenApp = (token, refreshToken, expireAt) => {
         value: token,
         refreshToken,
         expire: true,
-        expireAtMs: expireAt * 1000,
+        expireAtMs: moment().add(50, 'minutes'),
       })
       return resolve()
     } catch (error) {
@@ -162,10 +178,24 @@ const saveTokenApp = (token, refreshToken, expireAt) => {
   })
 }
 
-const getAllUsers = () => {
+const getAllUsers = (code = null) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let tokenapp = await getTokenApp()
+      let tokenapp = null
+      let tokenRefresh = null
+
+      if (!code) tokenapp = await getTokenApp()
+      else {
+        let { data: dataTokenUser } = await axios.post(
+          `${process.env.url_api_zoom}/oauth/token?grant_type=authorization_code&code=${code}&redirect_uri=${process.env.url_auth_api}`,
+          {},
+          {
+            headers: __headers__basic,
+          }
+        )
+        tokenapp = dataTokenUser.access_token
+        tokenRefresh = dataTokenUser.refresh_token
+      }
 
       console.log('tokenapp', tokenapp)
 
@@ -181,26 +211,7 @@ const getAllUsers = () => {
       )
 
       for (let user of data.users) {
-        let {
-          id,
-          first_name,
-          last_name,
-          email,
-          jid,
-          account_id,
-        } = await getUser(user.id)
-        await User.findOneAndUpdate(
-          { email },
-          {
-            userId: id,
-            name: first_name,
-            lastname: last_name,
-            email,
-            jid,
-            accountId: account_id,
-          },
-          { upsert: true }
-        )
+        await getUser(user.id, tokenapp, tokenRefresh)
       }
       return resolve()
     } catch (error) {
@@ -210,13 +221,97 @@ const getAllUsers = () => {
   })
 }
 
-const getUser = (userId) => {
+const getUser = (userId, token, refreshToken = null) => {
   return new Promise(async (resolve, reject) => {
     try {
       let tokenapp = await getTokenApp()
 
       let { data } = await axios.get(
         `${process.env.url_api_zoom}/v2/users/${userId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + tokenapp,
+            'cache-control': 'no-cache',
+          },
+        }
+      )
+
+      let { id, first_name, last_name, email, jid, account_id } = data
+      await User.findOneAndUpdate(
+        { email },
+        {
+          userId: id,
+          name: first_name,
+          lastname: last_name,
+          email,
+          jid,
+          token,
+          refreshToken,
+          accountId: account_id,
+        },
+        { upsert: true }
+      )
+
+      return resolve(data)
+    } catch (error) {
+      console.log(error)
+      return reject(error)
+    }
+  })
+}
+
+const getAllMeetings = (userId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let tokenapp = await getTokenApp()
+
+      console.log('tokenapp', tokenapp)
+
+      let { data } = await axios.get(
+        `${process.env.url_api_zoom}/v2/users/${userId}/meetings?page_size=300`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + tokenapp,
+            'cache-control': 'no-cache',
+          },
+        }
+      )
+
+      return resolve(data)
+    } catch (error) {
+      console.log(error)
+      return reject(error)
+    }
+  })
+}
+
+const getUsersMeeting = (meetingId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let tokenapp = await getTokenApp()
+
+      console.log('tokenapp', tokenapp)
+
+      await axios.patch(
+        `${process.env.url_api_zoom}/v2/meetings/${meetingId}`,
+        {
+          settings: {
+            approval_type: 0,
+          },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + tokenapp,
+            'cache-control': 'no-cache',
+          },
+        }
+      )
+
+      let { data } = await axios.get(
+        `${process.env.url_api_zoom}/v2/meetings/${meetingId}/registrants?page_size=300`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -239,6 +334,7 @@ const startBot = (userId) => {
     try {
       let tokenchatbot = await getTokenChatBot()
       let { name, jid, accountId } = await User.findOne({ userId }).lean()
+
       let forms = await getAllForms()
 
       sendMessage(
@@ -291,6 +387,60 @@ const startSesion = (value, userId) => {
         fields: formFields,
       })
 
+      let { meetings } = await getAllMeetings(userId)
+
+      sendMessage(
+        {
+          head: { text: `Indicanos la reunión de la votación` },
+          body: [
+            {
+              type: 'message',
+              text: `Por favor seleccione la reunión`,
+            },
+            {
+              type: 'select',
+              text: 'Reuniones',
+              select_items: meetings.map((m) => {
+                return {
+                  text: m.topic,
+                  value: `select_form_meeting|${m.id}`,
+                }
+              }),
+            },
+          ],
+        },
+        jid,
+        accountId,
+        tokenchatbot
+      )
+
+      return resolve()
+    } catch (error) {
+      console.log(error)
+      return reject(error)
+    }
+  })
+}
+
+const startMeeting = (value, userId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let [, meetingId] = value.split('|')
+
+      let tokenchatbot = await getTokenChatBot()
+      let { jid, accountId } = await User.findOne({ userId }).lean()
+
+      let { registrants } = await getUsersMeeting(meetingId)
+
+      // for (let user of registrants) {
+      //   await getUser(user.id)
+      // }
+
+      let { fields: formFields } = await Sesion.findOneAndUpdate(
+        { active: true },
+        { $set: { userIds: registrants.map((r) => r.email), meetingId } }
+      )
+
       let body = []
 
       formFields
@@ -331,8 +481,10 @@ const startQuestion = (cmd, userId) => {
       if (nro) {
         let tokenchatbot = await getTokenChatBot()
         // let { jid, accountId } = await User.findOne({ userId }).lean()
-        let users = await getAllJid()
+
         let sesion = await Sesion.findOne({ active: true })
+
+        let users = await getAllJidByEmail(sesion.userIds)
 
         let field = sesion.fields[parseInt(nro) - 1]
 
@@ -543,4 +695,5 @@ module.exports = {
   startQuestion,
   selectedQuestion,
   endBot,
+  startMeeting,
 }

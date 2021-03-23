@@ -33,7 +33,20 @@ const getAllJid = () => {
   })
 }
 
+const getAllJidByEmail = (emails) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let users = await User.find({ email: { $in: emails } }).lean()
+      return resolve(users)
+    } catch (error) {
+      console.log(error)
+      return reject(error)
+    }
+  })
+}
+
 module.exports = {
   getUser,
   getAllJid,
+  getAllJidByEmail
 }

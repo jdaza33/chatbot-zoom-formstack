@@ -13,6 +13,9 @@ const UserSchema = new Schema({
   email: String,
   admin: Boolean,
   accountId: String,
+  token: String,
+  refreshToken: String,
+  expireTokenAtMs: Number,
 })
 
 module.exports = mongoose.model('Users', UserSchema)
