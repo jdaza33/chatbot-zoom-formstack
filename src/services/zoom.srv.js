@@ -126,13 +126,12 @@ const getTokenApp = () => {
       }).lean()
 
       console.log(tokenapp)
-      console.log('date', date, 'expireAtMs', tokenapp.expireAtMs)
 
       if (tokenapp) {
-        // if (tokenapp.expire) {
-        if (true) {
-          if (false)
-            // if (date > parseInt(tokenapp.expireAtMs))
+        if (tokenapp.expire) {
+          // if (true) {
+          // if (false)
+          if (date < parseInt(tokenapp.expireAtMs))
             return resolve(tokenapp.value)
           else
             return resolve(
