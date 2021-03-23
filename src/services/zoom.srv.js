@@ -337,7 +337,9 @@ const startBot = (userId) => {
       let tokenchatbot = await getTokenChatBot()
       let { name, jid, accountId } = await User.findOne({ userId }).lean()
 
-      let forms = await getAllForms().reverse()
+      let forms = await getAllForms()
+
+      forms = forms.reverse()
 
       let formsSort = []
       for (let i = 0; i < 100; i++) {
