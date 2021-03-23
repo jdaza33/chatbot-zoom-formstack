@@ -351,10 +351,10 @@ const startBot = (userId) => {
               type: 'select',
               text: 'Formularios',
               select_items: forms.map((f) => {
-                return JSON.stringify({
-                  text: f.name,
+                return {
+                  text: JSON.stringify(f.name),
                   value: `select_form_sesion|${f.id}`,
-                })
+                }
               }),
             },
           ],
