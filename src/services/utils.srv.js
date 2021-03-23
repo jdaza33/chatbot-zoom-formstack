@@ -7,29 +7,25 @@ require('dotenv').config()
 //Models
 const Util = require('../models/Util')
 
-//Services
-const { getTokenApp, getAllUsers } = require('./zoom.srv')
-
 const saveCodeApp = (code) => {
   return new Promise(async (resolve, reject) => {
     try {
       //Verificamos si existe el codeApp
+      let isNew = true
       let codeapp = await Util.findOne({
         field: process.env.name_code_app,
       }).lean()
 
-      if (codeapp) await getAllUsers(code)
+      if (codeapp) isNew = false
       else {
         await Util.create({
           field: process.env.name_code_app,
           value: code,
           expire: false,
         })
-        await getTokenApp()
-        await getAllUsers()
       }
 
-      return resolve()
+      return resolve(isNew)
     } catch (error) {
       console.log(error)
       reject(error)

@@ -27,7 +27,12 @@ const authorize = async (req, res, next) => {
   try {
     console.log('authorize', req.query)
     let { code } = req.query
-    if (code) await saveCodeApp(code)
+    if (code) {
+      if (!(await saveCodeApp(code))) {
+        await getTokenApp()
+        await getAllUsers()
+      }
+    }
 
     res.redirect(
       'https://zoom.us/launch/chat?jid=robot_' + process.env.zoom_bot_jid
