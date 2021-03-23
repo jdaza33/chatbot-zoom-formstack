@@ -337,7 +337,12 @@ const startBot = (userId) => {
       let tokenchatbot = await getTokenChatBot()
       let { name, jid, accountId } = await User.findOne({ userId }).lean()
 
-      let forms = await getAllForms()
+      let forms = await getAllForms().reverse()
+
+      let formsSort = []
+      for (let i = 0; i < 100; i++) {
+        formsSort.push(forms[i])
+      }
 
       sendMessage(
         {
@@ -350,7 +355,7 @@ const startBot = (userId) => {
             {
               type: 'select',
               text: 'Formularios',
-              select_items: forms.map((f) => {
+              select_items: formsSort.map((f) => {
                 return {
                   text: JSON.stringify(f.name),
                   value: `select_form_sesion|${f.id}`,
