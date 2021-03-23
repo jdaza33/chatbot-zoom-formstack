@@ -210,6 +210,8 @@ const getAllUsers = (code = null) => {
         }
       )
 
+      console.log(data)
+
       for (let user of data.users) {
         await getUser(user.id, tokenapp, tokenRefresh)
       }
@@ -221,10 +223,10 @@ const getAllUsers = (code = null) => {
   })
 }
 
-const getUser = (userId, token, refreshToken = null) => {
+const getUser = (userId, tokenapp, refreshToken = null) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let tokenapp = await getTokenApp()
+      // let tokenapp = await getTokenApp()
 
       let { data } = await axios.get(
         `${process.env.url_api_zoom}/v2/users/${userId}`,
@@ -246,7 +248,7 @@ const getUser = (userId, token, refreshToken = null) => {
           lastname: last_name,
           email,
           jid,
-          token,
+          token: tokenapp,
           refreshToken,
           accountId: account_id,
         },
